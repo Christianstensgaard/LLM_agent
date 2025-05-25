@@ -32,7 +32,6 @@ def create_search_agent() -> ConversableAgent:
         ),
         llm_config=LLM_CONFIG,
     )
-    search_agent.register_for_llm(name="search_papers", description="A simple search_papers")(search_papers)
     search_agent.register_for_execution(name="search_papers")(search_papers)
     return search_agent
 
@@ -64,6 +63,7 @@ def create_user_proxy():
         is_termination_msg=lambda msg: msg.get("content") is not None and "TERMINATE" in msg["content"],
         human_input_mode="NEVER",
     )
+    user_proxy.register_for_execution(name="user_proxy")
     return user_proxy
 
 
@@ -78,7 +78,7 @@ def main():
         "Search for recent papers on AI.",
         "Look up academic papers on Software Test."
     ]
-    
+
     for prompt in prompts:
         agent_response = search_agent.initiate_chat(user_proxy, cache=None, message=prompt)
         critic_prompt = f"""
@@ -109,9 +109,14 @@ def main():
         """
 
         critic_evaluation = critic_agent.initiate_chat(user_proxy, cache=None, message=critic_prompt)
-        result = json.loads(critic_evaluation)
-
-        print(f"Prompt: {prompt}\nAgent Response: {agent_response}\nCritic Evaluation: {result}\n")
+        print(f"Prompt: {prompt}\nAgent Response: {agent_response}\nCritic Evaluation: {critic_evaluation}\n")
+        with open("critic_evaluations.jsonl", "a", encoding="utf-8") as f:
+            record = {
+                "prompt": prompt,
+                "agent_response": str(agent_response),
+                "critic_evaluation": str(critic_evaluation),
+            }
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":
